@@ -4,6 +4,7 @@ import { ensureCsrfCookieInMiddleware } from '@/lib/utils/csrf';
 import { isAdminRoute as isAdminPath, isMerchantRoute as isMerchantPath } from '@/lib/auth/routeAccess';
 import { supportedLocales, defaultLocale, LOCALE_COOKIE } from '@/lib/i18n/locales';
 import type { Locale } from '@/lib/i18n/locales';
+import { ROUTES } from '@/lib/navigation/routes';
 
 // ─── Locale helpers ──────────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ function localePath(locale: Locale, pathname: string): string {
  * Prefix for the auth surfaces (login, magic link, ...). Authenticated
  * visitors get bounced to their app shell; anonymous visitors pass through.
  */
-const AUTH_PATH_PREFIX = '/auth';
+const AUTH_PATH_PREFIX = ROUTES.AUTH_PREFIX;
 
 /**
  * Public interactive surface for payment links. Kept inside the matcher solely
@@ -105,19 +106,28 @@ export function middleware(request: NextRequest) {
     return response;
   };
 
-  const pathname = request.nextUrl.pathname;
+  /**
+   * Redirect helper that keeps the active locale prefix, so a French visitor is
+   * never bounced into the English tree.
+   */
+  const redirectTo = (path: string): NextResponse =>
+    withCsrf(NextResponse.redirect(new URL(localePath(activeLocale, path), request.url)));
+
+  // `request.nextUrl.pathname` still carries the locale prefix — every auth
+  // check below runs against the locale-stripped path instead.
+  const pathname = internalPathname;
 
   // Public payment links have no auth requirement — bail before the protected
   // checks below so an anonymous payer is never redirected to login.
   if (pathname.startsWith(PAYMENT_PATH_PREFIX)) {
-    return withCsrf(NextResponse.next());
+    return withCsrf(NextResponse.rewrite(new URL(internalPathname, request.url)));
   }
 
   // If trying to access auth pages while logged in, redirect to dashboard
   // Exception: 2FA page is always accessible after partial login
   if (pathname.startsWith(AUTH_PATH_PREFIX)) {
     if (token) {
-      return withCsrf(NextResponse.redirect(new URL(role === 'admin' ? '/overview' : '/dashboard', request.url)));
+      return redirectTo(role === 'admin' ? ROUTES.OVERVIEW : ROUTES.DASHBOARD);
     }
     return withCsrf(
       NextResponse.rewrite(new URL(internalPathname, request.url)),
@@ -126,29 +136,60 @@ export function middleware(request: NextRequest) {
 
   // Everything else in the matcher is a protected route — require a session.
   if (!token) {
-    return withCsrf(NextResponse.redirect(redirectUrl('/auth/login')));
+    return redirectTo(ROUTES.LOGIN);
   }
 
   // Redirect onboarded merchants away from onboarding page
   const isOnboarded = request.cookies.get('merchant_onboarded')?.value === 'true';
-  if (pathname === '/onboarding' && isOnboarded) {
-    return withCsrf(NextResponse.redirect(new URL('/dashboard', request.url)));
+  if (pathname === ROUTES.ONBOARDING && isOnboarded) {
+    return redirectTo(ROUTES.DASHBOARD);
   }
 
   // Role-based protection
   if (isAdminPath(pathname) && role !== 'admin') {
-    return withCsrf(NextResponse.redirect(new URL('/dashboard', request.url))); // redirect merchants from admin
+    return redirectTo(ROUTES.DASHBOARD); // redirect merchants from admin
   }
 
   // Protect merchant routes from admins
   if (isMerchantPath(pathname) && role === 'admin') {
-    return withCsrf(NextResponse.redirect(new URL('/overview', request.url)));
+    return redirectTo(ROUTES.OVERVIEW);
   }
 
   return withCsrf(
     NextResponse.rewrite(new URL(internalPathname, request.url)),
   );
 }
+
+/**
+ * Locale-prefixed variant of every allow-listed route, e.g. `/en/dashboard`.
+ * The matcher is a positive allow-list (issue #738), so the prefixed URLs the
+ * middleware itself redirects to must be listed too — otherwise the redirect
+ * target would skip the middleware and 404 instead of being rewritten back to
+ * the prefix-less route.
+ */
+const LOCALE_PATTERN = `(${supportedLocales.join('|')})`;
+
+const LOCALIZED_AUTH_AWARE_PATHS = [
+  '/auth',
+  '/onboarding',
+  '/dashboard',
+  '/transactions',
+  '/wallet',
+  '/fx',
+  '/developers',
+  '/settings',
+  '/payments',
+  '/settlement',
+  '/payment-links',
+  '/notifications',
+  '/overview',
+  '/merchants',
+  '/anchors',
+  '/fx-management',
+  '/compliance',
+  '/admin',
+  '/pay',
+];
 
 export const config = {
   /*
@@ -184,5 +225,7 @@ export const config = {
     '/admin/:path*',
     // Public interactive: payment links (CSRF seed, see PAYMENT_PATH_PREFIX)
     '/pay/:path*',
+    // The same allow-list again, locale-prefixed (`/en/dashboard`, ...).
+    ...LOCALIZED_AUTH_AWARE_PATHS.map((path) => `/${LOCALE_PATTERN}${path}/:path*`),
   ],
 };
