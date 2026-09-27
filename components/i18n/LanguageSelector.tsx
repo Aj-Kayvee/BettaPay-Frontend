@@ -6,17 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useRouter, usePathname } from "next/navigation";
 
 import { isSupportedLocale, localeStorageKey, supportedLocales } from "@/lib/i18n/config";
-import type { Locale } from "@/lib/i18n/locales";
-
-/** Strip a supported locale prefix from a pathname (if present). */
-function stripLocalePrefix(pathname: string): string {
-  const segments = pathname.split("/");
-  const candidate = segments[1];
-  if (candidate && supportedLocales.includes(candidate as Locale)) {
-    return "/" + segments.slice(2).join("/");
-  }
-  return pathname;
-}
+import { getLocaleDirection } from "@/lib/i18n/locales";
 
 export function LanguageSelector() {
   const { i18n, t } = useTranslation();
@@ -45,6 +35,7 @@ export function LanguageSelector() {
     try {
       window.localStorage.setItem(localeStorageKey, locale);
       document.documentElement.lang = locale;
+      document.documentElement.dir = getLocaleDirection(locale);
     } catch {
       // localStorage access may fail in private mode; still change language in memory
     }

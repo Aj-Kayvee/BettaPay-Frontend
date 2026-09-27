@@ -5,8 +5,14 @@ import { Button } from '@/components/ui';
 import { FileDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/store/authStore';
+import { getActiveLocale, toIntlLocale } from '@/lib/utils/format';
 import type { ApiSettlement } from '@/lib/api/hooks';
-import type { InvoiceMerchant } from '@/lib/utils/pdf';
+import {
+  downloadPdf,
+  generateInvoice,
+  type InvoiceData,
+  type InvoiceMerchant,
+} from '@/lib/services/pdfGenerator';
 
 function useInvoiceMerchant(): InvoiceMerchant {
   const user = useAuthStore((s) => s.user);
@@ -18,30 +24,14 @@ function useInvoiceMerchant(): InvoiceMerchant {
   };
 }
 
-function generatePdfViaWorker(type: 'SINGLE' | 'BATCH', payload: any): Promise<{ blob: Blob, filename: string } | null> {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('@/lib/workers/pdf.worker.ts', import.meta.url));
-    const id = Date.now();
-    worker.onmessage = (e) => {
-      if (e.data.id === id) {
-        if (e.data.success) {
-          resolve(e.data.result);
-        } else {
-          reject(new Error(e.data.error));
-        }
-        worker.terminate();
-      }
-    };
-    worker.onerror = (err) => {
-      reject(err);
-      worker.terminate();
-    };
-    worker.postMessage({ type, payload, id });
-  });
+async function downloadInvoice(data: InvoiceData) {
+  const pdf = await generateInvoice(data);
+  if (pdf) downloadPdf(pdf);
 }
 
 async function triggerDownload(type: 'SINGLE' | 'BATCH', payload: any) {
-  const result = await generatePdfViaWorker(type, payload);
+  const intlLocale = toIntlLocale(getActiveLocale());
+  const result = await generatePdfViaWorker(type, { ...payload, intlLocale });
   if (!result) return;
   const url = URL.createObjectURL(result.blob);
   const a = document.createElement('a');
@@ -66,7 +56,7 @@ export function InvoiceDownloadButton({ settlement }: InvoiceDownloadButtonProps
   const handleDownload = async () => {
     setIsGenerating(true);
     try {
-      await triggerDownload('SINGLE', { settlement, merchant });
+      await downloadInvoice({ kind: 'single', settlement, merchant });
       toast.success('Invoice downloaded');
     } catch {
       toast.error('Failed to generate invoice');
@@ -109,7 +99,7 @@ export function BatchInvoiceDownload({ settlements, disabled }: BatchInvoiceDown
   const handleDownload = async () => {
     setIsGenerating(true);
     try {
-      await triggerDownload('BATCH', { settlements: completed, merchant });
+      await downloadInvoice({ kind: 'batch', settlements: completed, merchant });
       toast.success(`Downloaded ${completed.length} invoice${completed.length === 1 ? '' : 's'}`);
     } catch {
       toast.error('Failed to generate invoices');

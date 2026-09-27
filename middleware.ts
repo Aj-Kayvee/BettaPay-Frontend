@@ -53,6 +53,19 @@ function localePath(locale: Locale, pathname: string): string {
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
+/**
+ * Prefix for the auth surfaces (login, magic link, ...). Authenticated
+ * visitors get bounced to their app shell; anonymous visitors pass through.
+ */
+const AUTH_PATH_PREFIX = '/auth';
+
+/**
+ * Public interactive surface for payment links. Kept inside the matcher solely
+ * so the CSRF double-submit cookie is seeded before an unauthenticated payment
+ * submission POST reaches the backend (issue #738). No auth is evaluated here.
+ */
+const PAYMENT_PATH_PREFIX = '/pay';
+
 export function middleware(request: NextRequest) {
   // ── Locale path-based routing ─────────────────────────────────────────────
   const extracted = extractLocaleFromPathname(request.nextUrl.pathname);
@@ -92,70 +105,44 @@ export function middleware(request: NextRequest) {
     return response;
   };
 
-  /** Helper: build a redirect URL that preserves the active locale prefix. */
-  const redirectUrl = (pathname: string) =>
-    new URL(localePath(activeLocale, pathname), request.url);
+  const pathname = request.nextUrl.pathname;
 
-  const isAuthPage = internalPathname.startsWith('/auth');
-
-  // Public marketing/reference surfaces. The API documentation in particular
-  // must be readable by anonymous developers evaluating BettaPay.
-  const isPublicPage = internalPathname === '/' ||
-                       internalPathname.startsWith('/pay') ||
-                       internalPathname === '/contact' ||
-                       internalPathname.startsWith('/docs') ||
-                       internalPathname.startsWith('/privacy') ||
-                       internalPathname.startsWith('/terms') ||
-                       internalPathname.startsWith('/fiat-settlements') ||
-                       internalPathname.startsWith('/pricing') ||
-                       internalPathname.startsWith('/about') ||
-                       internalPathname.startsWith('/guides') ||
-                       internalPathname.startsWith('/sdks') ||
-                       internalPathname.startsWith('/status');
-
-  const isAdminRoute = isAdminPath(internalPathname);
-
-  // Allow public access to landing page and payment links
-  if (isPublicPage) {
-    return withCsrf(
-      NextResponse.rewrite(new URL(internalPathname, request.url)),
-    );
+  // Public payment links have no auth requirement — bail before the protected
+  // checks below so an anonymous payer is never redirected to login.
+  if (pathname.startsWith(PAYMENT_PATH_PREFIX)) {
+    return withCsrf(NextResponse.next());
   }
 
   // If trying to access auth pages while logged in, redirect to dashboard
-  if (isAuthPage) {
+  // Exception: 2FA page is always accessible after partial login
+  if (pathname.startsWith(AUTH_PATH_PREFIX)) {
     if (token) {
-      if (role === 'admin') {
-        return withCsrf(NextResponse.redirect(redirectUrl('/overview')));
-      }
-      return withCsrf(NextResponse.redirect(redirectUrl('/dashboard')));
+      return withCsrf(NextResponse.redirect(new URL(role === 'admin' ? '/overview' : '/dashboard', request.url)));
     }
     return withCsrf(
       NextResponse.rewrite(new URL(internalPathname, request.url)),
     );
   }
 
-  // Require auth for everything else
+  // Everything else in the matcher is a protected route — require a session.
   if (!token) {
     return withCsrf(NextResponse.redirect(redirectUrl('/auth/login')));
   }
 
   // Redirect onboarded merchants away from onboarding page
   const isOnboarded = request.cookies.get('merchant_onboarded')?.value === 'true';
-  if (internalPathname === '/onboarding' && isOnboarded) {
-    return withCsrf(NextResponse.redirect(redirectUrl('/dashboard')));
+  if (pathname === '/onboarding' && isOnboarded) {
+    return withCsrf(NextResponse.redirect(new URL('/dashboard', request.url)));
   }
 
   // Role-based protection
-  if (isAdminRoute && role !== 'admin') {
-    return withCsrf(NextResponse.redirect(redirectUrl('/dashboard')));
+  if (isAdminPath(pathname) && role !== 'admin') {
+    return withCsrf(NextResponse.redirect(new URL('/dashboard', request.url))); // redirect merchants from admin
   }
 
   // Protect merchant routes from admins
-  const isMerchantRoute = isMerchantPath(internalPathname);
-
-  if (isMerchantRoute && role === 'admin') {
-    return withCsrf(NextResponse.redirect(redirectUrl('/overview')));
+  if (isMerchantPath(pathname) && role === 'admin') {
+    return withCsrf(NextResponse.redirect(new URL('/overview', request.url)));
   }
 
   return withCsrf(
@@ -164,14 +151,38 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
+  /*
+   * Positive allow-list of routes that need authentication evaluation. The
+   * middleware now only runs here instead of on every non-static request:
+   * static assets, API routes, the homepage and the marketing/reference pages
+   * bypass it entirely (issue #738).
+   *
+   * `/merchants/kyb` and the `/settings/` prefix are covered by the broader
+   * `/merchants/:path*` and `/settings/:path*` entries respectively.
+   */
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    // Auth surfaces
+    '/auth/:path*',
+    // Merchant app shell + onboarding
+    '/onboarding/:path*',
+    '/dashboard/:path*',
+    '/transactions/:path*',
+    '/wallet/:path*',
+    '/fx/:path*',
+    '/developers/:path*',
+    '/settings/:path*',
+    '/payments/:path*',
+    '/settlement/:path*',
+    '/payment-links/:path*',
+    '/notifications/:path*',
+    // Admin app shell
+    '/overview/:path*',
+    '/merchants/:path*',
+    '/anchors/:path*',
+    '/fx-management/:path*',
+    '/compliance/:path*',
+    '/admin/:path*',
+    // Public interactive: payment links (CSRF seed, see PAYMENT_PATH_PREFIX)
+    '/pay/:path*',
   ],
 };

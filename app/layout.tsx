@@ -6,11 +6,15 @@ import { ConditionalAppProviders } from "@/components/providers/ConditionalAppPr
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { SITE_URL } from "@/lib/config";
+import { defaultLocale, getLocaleDirection } from "@/lib/i18n/locales";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { I18nProvider } from '@/components/i18n/I18nProvider';
 import { TranslationCoveragePanel } from '@/components/i18n/TranslationCoveragePanel';
-import { cookies } from 'next/headers';
-import { isSupportedLocale } from '@/lib/i18n/locales';
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_OG_IMAGE,
+  DEFAULT_TITLE,
+} from "@/lib/metadata";
 
 
 const fraunces = Fraunces({
@@ -27,12 +31,28 @@ const dmSans = DM_Sans({
 });
 
 
-export const metadata: Metadata = {
-  // Resolves relative canonical/openGraph URLs declared by individual pages.
-  metadataBase: new URL(SITE_URL),
-  title: "BettaPay | Non-custodial Merchant Platform",
-  description: "Accept USDC and stablecoins easily across Africa",
-};
+export function generateMetadata(): Metadata {
+  return {
+    metadataBase: new URL(SITE_URL),
+    applicationName: "BettaPay",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    openGraph: {
+      type: "website",
+      locale: "en_US",
+      siteName: "BettaPay",
+      title: DEFAULT_TITLE,
+      description: DEFAULT_DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE],
+    },
+    twitter: {
+      card: "summary",
+      title: DEFAULT_TITLE,
+      description: DEFAULT_DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE.url],
+    },
+  };
+}
 
 
 export default async function RootLayout({
@@ -40,6 +60,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Issue #744: seed the document direction from the default locale for SSR.
+  // The active locale is persisted in localStorage (client-only), so
+  // `I18nProvider`/`LanguageSelector` re-sync `dir` after mount / on change;
+  // `suppressHydrationWarning` covers the SSR->client transition for RTL.
+  const documentDirection = getLocaleDirection(defaultLocale);
   // CSRF cookie is now seeded in `middleware.ts` via `ensureCsrfCookieInMiddleware`
   // (using NextResponse.cookies.set, which is allowed in middleware). The
   // previous `await ensureCsrfCookie()` call here triggered
@@ -70,7 +95,7 @@ export default async function RootLayout({
   );
 
   return (
-    <html lang={htmlLang} suppressHydrationWarning className={cn("font-sans antialiased", fraunces.variable, dmSans.variable)}>
+    <html lang="en" dir={documentDirection} suppressHydrationWarning className={cn("font-sans antialiased", fraunces.variable, dmSans.variable)}>
       <body className="min-h-screen bg-background text-foreground">
         <a
           href="#main-content"
