@@ -77,6 +77,12 @@ export default async function RootLayout({
   // login page (app/auth/login/page.tsx) shows a disabled "Google login
   // unavailable" fallback with tooltip + dev console.warn in this state.
 
+  // Resolve the document lang attribute from the locale cookie set by the
+  // locale middleware. Falls back to "en" so SSR always produces valid HTML.
+  const cookieStore = await cookies();
+  const rawLocale = cookieStore.get('NEXT_LOCALE')?.value;
+  const htmlLang = rawLocale && isSupportedLocale(rawLocale) ? rawLocale : 'en';
+
   const inner = (
     <I18nProvider>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
