@@ -23,7 +23,9 @@ test.describe('Initiate settlement', () => {
     await page.getByRole('button', { name: /initiate settlement/i }).click();
 
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByText(/confirm settlement/i)).toBeVisible();
+    // "Confirm Settlement" is both the dialog title and its primary button, so
+    // match the heading to avoid a strict-mode violation.
+    await expect(dialog.getByRole('heading', { name: /confirm settlement/i })).toBeVisible();
 
     // Confirm is gated on the acknowledgement checkbox.
     const confirm = dialog.getByRole('button', { name: /confirm settlement/i });
@@ -72,14 +74,14 @@ test.describe('Settlement history', () => {
   });
 
   test('exposes an export control for the history', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /^export$/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /export csv/i })).toBeVisible();
   });
 
   test('surfaces an error with retry when the history fails to load', async ({ page }) => {
     // The page exposes a "Simulate Error" toggle for the history surface.
     await page.getByRole('button', { name: /simulate error/i }).click();
-    await expect(page.getByRole('alert')).toBeVisible();
-    await expect(page.getByRole('button', { name: /try again/i })).toBeVisible();
+    await expect(page.getByRole('alert').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /try again/i }).first()).toBeVisible();
 
     // Recover.
     await page.getByRole('button', { name: /try again/i }).click();

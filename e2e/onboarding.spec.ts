@@ -40,6 +40,14 @@ test.describe('Onboarding webhook SSRF validation', () => {
     await mockLogin(context, 'merchant');
     await seedOnboardingStep(context, 3);
     await gotoAuthed(page, '/onboarding');
+
+    // Seeded progress makes the wizard offer to resume from the stored step
+    // instead of silently jumping there, so accept the prompt first.
+    const resume = page.getByRole('button', { name: /^resume$/i });
+    if (await resume.isVisible()) {
+      await resume.click();
+    }
+
     await expect(page.getByRole('heading', { name: /webhook configuration/i })).toBeVisible();
   });
 
@@ -75,6 +83,10 @@ test.describe('Onboarding webhook SSRF validation', () => {
     await page.getByPlaceholder(/your-app\.com/i).fill('http://example.com/webhook');
     await page.getByRole('button', { name: /continue/i }).click();
 
-    await expect(page.getByText(/Enter a valid URL, including https:\/\//i)).toBeVisible();
+    // A well-formed `http://` URL passes the URL check and is rejected by the
+    // HTTPS-only rule instead.
+    await expect(
+      page.getByText(/URL must be HTTPS and cannot be a private IP or localhost/i),
+    ).toBeVisible();
   });
 });

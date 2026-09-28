@@ -55,12 +55,13 @@ test.describe('Payment links — populated', () => {
       await page.getByRole('button', { name: /new payment link/i }).first().click();
       const dialog = page.getByRole('dialog');
 
-      await dialog.getByRole('button', { name: /multi-currency/i }).click();
+      // The payment mode is a tablist ("Single Currency" / "Multi-Currency").
+      await dialog.getByRole('tab', { name: /multi-currency/i }).click();
       // The accepted-currencies selector appears in multi mode.
       await expect(dialog.getByText(/accepted currencies/i)).toBeVisible();
 
       // Back to single currency.
-      await dialog.getByRole('button', { name: /single currency/i }).click();
+      await dialog.getByRole('tab', { name: /single currency/i }).click();
       await expect(dialog.getByText(/^amount \(optional\)$/i)).toBeVisible();
     });
   });
@@ -113,14 +114,14 @@ test.describe('Payment links — populated', () => {
     test('copies a link URL to the clipboard', async ({ page }) => {
       // Assert the copy success toast (a deterministic, cross-browser signal)
       // rather than reading the clipboard, which requires engine-specific perms.
-      await page.getByRole('button', { name: /copy address/i }).first().click();
+      await page.getByRole('button', { name: /wallet address/i }).first().click();
       await expect(page.getByText(/address copied to clipboard/i)).toBeVisible();
     });
 
     test('opens the QR code modal for a link', async ({ page }) => {
       await page.getByRole('button', { name: /show qr code/i }).first().click();
       const dialog = page.getByRole('dialog');
-      await expect(dialog.getByText(/qr code/i)).toBeVisible();
+      await expect(dialog.getByText(/scan with any smartphone/i)).toBeVisible();
       // Download affordances are present.
       await expect(dialog.getByRole('button', { name: /^png$/i })).toBeVisible();
       await dialog.getByRole('button', { name: /^close$/i }).click();
@@ -177,7 +178,7 @@ test.describe('Payment links — empty state', () => {
     await gotoAuthed(page, '/payments');
 
     await expect(page.getByText(/no payment links yet/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /new payment link/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /new payment link/i }).first()).toBeVisible();
   });
 });
 
@@ -191,7 +192,7 @@ test.describe('Payment links — error state', () => {
     // The list surface toggles into an error with a retry affordance. (The page
     // also exposes a "Simulate Error" toggle for the same surface.)
     await page.getByRole('button', { name: /simulate error/i }).click();
-    await expect(page.getByRole('alert')).toBeVisible();
-    await expect(page.getByRole('button', { name: /try again/i })).toBeVisible();
+    await expect(page.getByRole('alert').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /try again/i }).first()).toBeVisible();
   });
 });

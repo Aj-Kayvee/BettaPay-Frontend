@@ -57,8 +57,8 @@ test.describe('Wallet (Freighter) login', () => {
     await page.getByRole('button', { name: /connect freighter wallet/i }).click();
 
     const modal = page.getByRole('dialog');
-    await expect(modal.getByText(/connect a wallet/i)).toBeVisible();
-    await expect(modal.getByRole('button', { name: /connect with freighter/i })).toBeVisible();
+    await expect(modal.getByRole('heading', { name: /connect wallet/i })).toBeVisible();
+    await expect(modal.getByRole('button', { name: /freighter wallet/i })).toBeVisible();
     await expect(modal.getByRole('button', { name: /walletconnect/i })).toBeVisible();
 
     // Escape closes the modal.

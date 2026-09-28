@@ -58,10 +58,18 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    // Serve a production build rather than `next dev`. Compiling each route on
+    // demand made the dev server the bottleneck: with 4 parallel workers the
+    // first hit on any route could take ~20s, so unrelated assertions blew their
+    // 5s/30s timeouts and the suite reported failures that had nothing to do
+    // with the feature under test. A production build serves every route
+    // instantly and keeps the failures meaningful.
+    command: 'npm run build && npm run start',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    // Generous: the timeout covers the production build the webServer performs
+    // before it starts serving.
+    timeout: 480 * 1000,
     // Point the API client at the same origin so route mocks are same-origin
     // (no CORS) and payment-link URLs resolve to the running app.
     env: {

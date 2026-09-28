@@ -61,10 +61,12 @@ const STEPS: Step[] = [
 export const OnboardingWizard = () => {
   const { t } = useAppTranslation();
   const [currentStep, setCurrentStep] = useState(0);
-  const { isConnected, setWalletModalOpen } = useWalletStore((s) => ({
-    isConnected: s.isConnected,
-    setWalletModalOpen: s.setWalletModalOpen,
-  }));
+  // Primitive selectors, not one selector returning a new object each call —
+  // zustand v5 doesn't memoize the selector result, so an object-returning
+  // selector fails React's useSyncExternalStore consistency check and
+  // infinite-loops (see the same note in TransactionDrawer.tsx).
+  const isConnected = useWalletStore((s) => s.isConnected);
+  const setWalletModalOpen = useWalletStore((s) => s.setWalletModalOpen);
   const { isOnboarded, hydrated, markComplete } = useOnboardingStatus();
 
   const visible = hydrated && !isOnboarded;

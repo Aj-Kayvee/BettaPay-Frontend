@@ -78,7 +78,7 @@ export const MerchantSidebar = () => {
         "h-full flex-col bg-card border-r border-border hidden md:flex flex-shrink-0 transition-all duration-300 ease-in-out",
         collapsed ? "w-16" : "w-64"
       )}
-      aria-label="Main navigation"
+      aria-label="Merchant sidebar"
     >
       {/* Logo + collapse toggle */}
       <div className={cn("p-5 border-b border-border flex items-center", collapsed ? "justify-center px-2" : "justify-between gap-2")}>
@@ -106,7 +106,7 @@ export const MerchantSidebar = () => {
         </button>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto" aria-label="Merchant menu">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto" aria-label="Main navigation">
         {merchantNavItems.map((item) => {
           const isActive =
             pathname === item.href || (pathname ?? '').startsWith(item.href + "/");

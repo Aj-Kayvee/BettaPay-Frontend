@@ -16,7 +16,9 @@ jobs:
   e2e:
     name: e2e (${{ matrix.project }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The webServer now builds a production bundle before serving, so allow for
+    # that on top of the test run itself.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -70,7 +72,7 @@ jobs:
   coverage:
     name: coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       CI: 'true'
       E2E_COVERAGE: '1'

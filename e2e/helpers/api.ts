@@ -166,6 +166,18 @@ export async function mockMerchantApi(context: BrowserContext): Promise<void> {
     }
     return fulfillJson(route, MERCHANT_PROFILE_FIXTURE);
   });
+
+  // Payment-link mutations go to `/api/payment-links` (the list is served from
+  // `/api/payments`), so the create/edit/delete flows need their own stub.
+  await context.route('**/api/payment-links**', (route) =>
+    fulfillJson(route, { ...PAYMENTS_FIXTURE[0], id: 'pl_e2e_created' }),
+  );
+
+  // The security tab changes the password through the real auth surface; a 2xx
+  // is all the page needs to raise its "Password updated" toast.
+  await context.route('**/api/auth/change-password**', (route) =>
+    fulfillJson(route, { ok: true }),
+  );
 }
 
 /**

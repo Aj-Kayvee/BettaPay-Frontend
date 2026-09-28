@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { mockMerchantApi } from './helpers/api';
 
 /**
  * BettaPay E2E Smoke Tests
@@ -19,9 +20,12 @@ import { test, expect } from '@playwright/test';
  */
 async function loginAsMerchant(page: import('@playwright/test').Page) {
   await page.goto('/auth/login');
-  await page.getByLabel(/email/i).fill('merchant@bettapay.com');
-  await page.getByLabel(/password/i).fill('Password123!');
-  await page.getByRole('button', { name: /sign in/i }).click();
+  // The email/password fields are matched exactly: the surrounding form carries
+  // an `aria-label` of "Sign in with email and password", so a loose /email/i
+  // label query resolves to both the form and the input.
+  await page.getByLabel('Email address', { exact: true }).fill('merchant@bettapay.com');
+  await page.getByLabel('Password', { exact: true }).fill('Password123!');
+  await page.getByRole('button', { name: /sign in with email/i }).click();
 
   // The login flow redirects merchants to /dashboard.
   // Wait for the URL to settle on the dashboard.
@@ -61,13 +65,13 @@ test.describe('Login Flow', () => {
     // Verify we're on the login page
     await expect(page).toHaveURL(/\/auth\/login/);
     await expect(
-      page.getByRole('heading', { name: /sign in/i }),
+      page.getByRole('heading', { name: /welcome back/i }),
     ).toBeVisible();
 
     // Fill and submit the login form
-    await page.getByLabel(/email/i).fill('merchant@bettapay.com');
-    await page.getByLabel(/password/i).fill('Password123!');
-    await page.getByRole('button', { name: /sign in/i }).click();
+    await page.getByLabel('Email address', { exact: true }).fill('merchant@bettapay.com');
+    await page.getByLabel('Password', { exact: true }).fill('Password123!');
+    await page.getByRole('button', { name: /sign in with email/i }).click();
 
     // Should redirect to the merchant dashboard
     await page.waitForURL('**/dashboard', { timeout: 15000 });
@@ -78,7 +82,10 @@ test.describe('Login Flow', () => {
 // ─── 3. Dashboard renders KPI cards and chart ───────────────────────────────
 
 test.describe('Dashboard', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ context, page }) => {
+    // The merchant surfaces render their data-driven sections from the API, so
+    // the smoke journeys need the same fixtures the flow specs use.
+    await mockMerchantApi(context);
     await loginAsMerchant(page);
   });
 
@@ -99,7 +106,8 @@ test.describe('Dashboard', () => {
 // ─── 4. Sidebar navigation → Settings ───────────────────────────────────────
 
 test.describe('Settings Page', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ context, page }) => {
+    await mockMerchantApi(context);
     await loginAsMerchant(page);
   });
 
@@ -119,15 +127,16 @@ test.describe('Settings Page', () => {
       page.getByRole('heading', { name: /settings/i }),
     ).toBeVisible();
 
-    // The "Profile Details" card should render by default
-    await expect(page.getByText(/profile details/i)).toBeVisible();
+    // The business-profile card should render by default
+    await expect(page.getByText(/business profile/i).first()).toBeVisible();
   });
 });
 
 // ─── 5. Sidebar navigation → Transactions ──────────────────────────────────
 
 test.describe('Transactions Page', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ context, page }) => {
+    await mockMerchantApi(context);
     await loginAsMerchant(page);
   });
 
@@ -147,10 +156,11 @@ test.describe('Transactions Page', () => {
       page.getByRole('heading', { name: /transactions/i }),
     ).toBeVisible();
 
-    // The table should render with expected column headers
-    await expect(page.getByRole('table')).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: /date/i })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: /payer/i })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: /status/i })).toBeVisible();
+    // The table should render with expected column headers. The list renders an
+    // outer container plus the virtualized row table, so scope with `.first()`.
+    await expect(page.getByRole('table').first()).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: /date/i }).first()).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: /payer/i }).first()).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: /status/i }).first()).toBeVisible();
   });
 });

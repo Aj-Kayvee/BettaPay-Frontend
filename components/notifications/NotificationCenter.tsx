@@ -7,6 +7,7 @@ import {
   Button,
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -162,7 +163,12 @@ export function NotificationCenter({ unreadNotificationCount = 0 }: Notification
       />
       <DropdownMenuContent align="end" className="w-[360px] border-border shadow-lg rounded-2xl p-0">
         <div className="flex items-center justify-between px-4 py-3">
-          <DropdownMenuLabel className="p-0 text-base font-semibold text-foreground">Notifications</DropdownMenuLabel>
+          {/* Base UI's `Menu.GroupLabel` throws outside a `Menu.Group`. */}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="p-0 text-base font-semibold text-foreground">
+              Notifications
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
           <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={handleMarkAllRead}>
             <CheckCheck className="mr-1 h-3.5 w-3.5" />
             Mark all read

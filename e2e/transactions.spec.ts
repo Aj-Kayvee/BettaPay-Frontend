@@ -5,11 +5,23 @@ import { mockMerchantApi } from './helpers/api';
 /**
  * Transactions list and the slide-out Transaction Detail Drawer.
  *
- * The transactions table is backed by local mock data, so rows render without
- * an API. We exercise the table chrome (search, filters, export) and the full
- * drawer lifecycle: open from a row, read its sections, copy a field, and close
- * via the button and via Escape.
+ * The table renders two `<table>` elements (the outer container and the
+ * virtualized row table), so every table query is scoped with `.first()`.
+ * Rows come from the mocked `/api/payments` fixtures, so we identify them by
+ * their source label rather than by a payer address.
+ *
+ * We exercise the table chrome (search, filters, export) and the full drawer
+ * lifecycle: open from a row, read its sections, copy a field, and close via
+ * the button and via Escape.
  */
+
+const ROW_A = 'Consulting Retainer';
+const ROW_B = 'Open Donation';
+
+/** First virtualized transaction row. */
+function firstRow(page: import('@playwright/test').Page) {
+  return page.getByTestId('transactions-virtual-list').locator('tbody tr').first();
+}
 
 test.beforeEach(async ({ context, page }) => {
   await mockMerchantApi(context);
@@ -20,19 +32,20 @@ test.beforeEach(async ({ context, page }) => {
 
 test.describe('Transactions table', () => {
   test('renders the table with the expected columns', async ({ page }) => {
-    await expect(page.getByRole('table')).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: /date/i })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: /payer/i })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: /status/i })).toBeVisible();
+    await expect(page.getByRole('table').first()).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: /date/i }).first()).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: /payer/i }).first()).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: /status/i }).first()).toBeVisible();
   });
 
   test('filters rows by search term', async ({ page }) => {
     const search = page.getByPlaceholder(/search by hash, address, or label/i);
-    await expect(page.getByText('GBX...4Q3')).toBeVisible();
+    const list = page.getByTestId('transactions-virtual-list');
+    await expect(list.getByText(ROW_A).first()).toBeVisible();
 
-    await search.fill('GCY...8R2');
-    await expect(page.getByText('GCY...8R2')).toBeVisible();
-    await expect(page.getByText('GBX...4Q3')).toBeHidden();
+    await search.fill('Consulting');
+    await expect(list.getByText(ROW_A).first()).toBeVisible();
+    await expect(list.getByText(ROW_B)).toBeHidden();
   });
 
   test('exposes a CSV export action', async ({ page }) => {
@@ -42,7 +55,7 @@ test.describe('Transactions table', () => {
 
 test.describe('Transaction detail drawer', () => {
   test('opens from a row and shows the detail sections', async ({ page }) => {
-    await page.getByText('GBX...4Q3').first().click();
+    await firstRow(page).click();
 
     const drawer = page.getByRole('dialog');
     await expect(drawer.getByText(/transaction details/i)).toBeVisible();
@@ -53,9 +66,9 @@ test.describe('Transaction detail drawer', () => {
 
   test('navigates from dashboard to transaction detail', async ({ page }) => {
     await gotoAuthed(page, '/dashboard');
-    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /good day/i })).toBeVisible();
 
-    const txRow = page.getByText('GBX...4Q3').first();
+    const txRow = page.getByText(ROW_A).first();
     if (await txRow.isVisible()) {
       await txRow.click();
       const drawer = page.getByRole('dialog');
@@ -66,7 +79,7 @@ test.describe('Transaction detail drawer', () => {
   });
 
   test('copies a field from the drawer', async ({ page }) => {
-    await page.getByText('GBX...4Q3').first().click();
+    await firstRow(page).click();
     const drawer = page.getByRole('dialog');
 
     const copyBtn = drawer.getByRole('button', { name: /copy transaction id/i }).first();
@@ -78,7 +91,7 @@ test.describe('Transaction detail drawer', () => {
   });
 
   test('closes via the close button', async ({ page }) => {
-    await page.getByText('GBX...4Q3').first().click();
+    await firstRow(page).click();
     const drawer = page.getByRole('dialog');
     await expect(drawer).toBeVisible();
 
@@ -87,7 +100,7 @@ test.describe('Transaction detail drawer', () => {
   });
 
   test('closes with the Escape key', async ({ page }) => {
-    await page.getByText('GBX...4Q3').first().click();
+    await firstRow(page).click();
     const drawer = page.getByRole('dialog');
     await expect(drawer).toBeVisible();
 

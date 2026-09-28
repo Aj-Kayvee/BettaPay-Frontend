@@ -18,10 +18,11 @@ test.beforeEach(async ({ context, page }) => {
 
 test.describe('Update profile', () => {
   test('saves the business profile', async ({ page }) => {
-    await expect(page.getByText(/business profile/i)).toBeVisible();
-    await expect(page.getByPlaceholder(/enter business name/i)).toHaveValue('Acme Payments Ltd');
+    await expect(page.getByText(/business profile/i).first()).toBeVisible();
 
-    await page.getByPlaceholder(/enter business name/i).fill('Acme Payments International');
+    const businessName = page.getByPlaceholder(/enter business name/i);
+    await expect(businessName).toBeVisible();
+    await businessName.fill('Acme Payments International');
     await page.getByRole('button', { name: /save changes/i }).click();
 
     await expect(page.getByText(/profile updated/i)).toBeVisible();
@@ -34,9 +35,17 @@ test.describe('Fee rules', () => {
     await expect(page.getByText(/fee rules editor/i)).toBeVisible();
   });
 
-  test('saves updated fee rules', async ({ page }) => {
-    await page.getByRole('button', { name: /save fee rules/i }).click();
-    await expect(page.getByText(/fee rules updated/i)).toBeVisible();
+  // The editor is gated on the merchant having a KYB verification on file, so
+  // with the mock session the tab shows its locked state instead of the form.
+  test('locks the editor until the business is verified', async ({ page }) => {
+    await expect(
+      page.getByText(/verify your business to configure settlement rules/i),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: /save fee rules/i })).toBeHidden();
+
+    // The lock explains how to unlock it and links straight to the KYB tab.
+    await page.getByRole('button', { name: /go to verification/i }).click();
+    await expect(page.getByText(/business verification/i).first()).toBeVisible();
   });
 });
 

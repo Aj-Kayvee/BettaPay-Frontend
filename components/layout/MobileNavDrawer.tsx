@@ -36,12 +36,15 @@ export const MobileNavDrawer = ({
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Close the drawer automatically when pathname changes (route change)
+  // Close the drawer automatically when the route changes. `isOpen` must NOT be
+  // a dependency here: the effect would then re-run the moment the drawer is
+  // opened, calling `onClose()` and making it impossible to ever open it.
+  const previousPathname = useRef(pathname);
   useEffect(() => {
-    if (isOpen) {
-      onClose();
-    }
-  }, [pathname, isOpen, onClose]);
+    if (previousPathname.current === pathname) return;
+    previousPathname.current = pathname;
+    onClose();
+  }, [pathname, onClose]);
 
   // Lock scroll when open, focus close button
   useEffect(() => {
@@ -95,6 +98,11 @@ export const MobileNavDrawer = ({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
+
+  // A closed drawer must not stay in the tree: it is an `aria-modal` dialog, so
+  // leaving it mounted exposes it to assistive tech (and to `getByRole`) while
+  // it is only visually translated off-screen.
+  if (!isOpen) return null;
 
   return (
     <>

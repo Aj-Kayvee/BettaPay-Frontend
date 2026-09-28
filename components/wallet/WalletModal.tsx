@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { X } from "lucide-react";
 import { useWalletStore } from "@/lib/store/walletStore";
 import { WalletConnectModal } from "./WalletConnectModal";
@@ -168,6 +168,7 @@ export function WalletModal({ isOpen = true, onClose, onConnected }: WalletModal
   const cancelWalletConnect = useWalletStore((s) => s.cancelWalletConnect);
   const resolveWalletConnect = useWalletStore((s) => s.resolveWalletConnect);
   const address = useWalletStore((s) => s.address);
+  const titleId = useId();
 
   useEffect(() => {
     if (isOpen !== walletModalOpen) {
@@ -186,6 +187,20 @@ export function WalletModal({ isOpen = true, onClose, onConnected }: WalletModal
     onClose?.();
   };
 
+  // Escape dismisses the modal, matching the other overlays in the app.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, setWalletModalOpen, onClose]);
+
   const handleWalletConnectSession = (session: WalletConnectSession) => {
     resolveWalletConnect(session);
   };
@@ -201,9 +216,14 @@ export function WalletModal({ isOpen = true, onClose, onConnected }: WalletModal
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-        <div className="w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden border border-gray-200">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          className="w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden border border-gray-200"
+        >
           <div className="flex items-center justify-between p-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <h2 id={titleId} className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               Connect Wallet
             </h2>
             <button

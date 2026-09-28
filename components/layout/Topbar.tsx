@@ -10,6 +10,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -168,16 +169,20 @@ export const Topbar = ({ onMenuClick, isMenuOpen, title, unreadNotificationCount
             className="w-56 border-border shadow-dropdown rounded-xl mt-1"
             align="end"
           >
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1 py-1">
-                <p className="text-sm font-semibold text-foreground leading-none">
-                  {user?.name ?? "Merchant User"}
-                </p>
-                <p className="text-xs leading-none text-muted-foreground mt-1">
-                  {user?.email ?? "merchant@example.com"}
-                </p>
-              </div>
-            </DropdownMenuLabel>
+            {/* `DropdownMenuLabel` maps to Base UI's `Menu.GroupLabel`, which
+                throws unless it sits inside a `Menu.Group`. */}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1 py-1">
+                  <p className="text-sm font-semibold text-foreground leading-none">
+                    {user?.name ?? "Merchant User"}
+                  </p>
+                  <p className="text-xs leading-none text-muted-foreground mt-1">
+                    {user?.email ?? "merchant@example.com"}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator className="bg-muted" />
             <DropdownMenuItem
               className="flex items-center gap-2 text-muted-foreground cursor-pointer rounded-lg"
