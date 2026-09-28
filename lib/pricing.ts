@@ -323,10 +323,15 @@ export function formatUsd(amount: number): string {
 }
 
 export function formatUsdCompact(amount: number): string {
+  const absolute = Math.abs(amount);
+  // Thresholds read better with an explicit decimal in the thousands range
+  // (`$10.0K`, `$500.0K`) rather than collapsing to `$10K` / `$500K`.
+  const isThousands = absolute >= 1_000 && absolute < 1_000_000;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     notation: 'compact',
     maximumFractionDigits: 1,
+    minimumFractionDigits: isThousands ? 1 : 0,
   }).format(amount);
 }

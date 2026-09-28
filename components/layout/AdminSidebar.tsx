@@ -158,7 +158,7 @@ export const AdminSidebar = () => {
         aria-label="Admin menu"
       >
         {navItems.map((item) => {
-          const active = isNavItemActive(pathname, item.href);
+          const active = isNavItemActive(pathname ?? '', item.href);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const Icon = item.icon as any;
 

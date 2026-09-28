@@ -15,7 +15,7 @@ type State =
 function MagicCallback() {
   const router = useRouter();
   const params = useSearchParams();
-  const token = params.get("token");
+  const token = params?.get("token") ?? null;
   const [state, setState] = useState<State>({ status: "verifying" });
   const ran = useRef(false);
 

@@ -65,11 +65,18 @@ export function hasRealSession(s: Pick<AuthState, "isAuthenticated" | "user">): 
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       token: null,
       role: null,
       isAuthenticated: false,
+      isLoggedIn: false,
+      _hasHydrated: false,
+      setHasHydrated: (v: boolean) => set({ _hasHydrated: v }),
+      // Silent JWT refresh (lib/api/axios.ts, useSessionTimeout): swap the token
+      // in place and keep the login flag consistent with the identity.
+      setToken: (token: string) =>
+        set((state) => ({ token, isLoggedIn: hasRealSession(state) })),
       login: (token, user) =>
         set({
           user,

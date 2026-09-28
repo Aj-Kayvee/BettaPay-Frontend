@@ -44,7 +44,7 @@ const PASSWORD_REQUIREMENTS: PasswordRequirement[] = [
 export default function ResetPasswordPage() {
   const { t } = useAppTranslation();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  const token = searchParams?.get('token') ?? '';
 
   const [pageState, setPageState] = useState<PageState>('form');
   const [password, setPassword] = useState('');
